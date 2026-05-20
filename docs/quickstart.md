@@ -28,13 +28,18 @@ Flowctl uses three directories for file resolution:
 
 ```bash
 # Run with specific run-id (for tracking)
-flowctl run .flows/workflows/simple-issue-pr.yaml --run-id issue-42 --dry-run
-
-# Run with repo-dir to access repository files
 flowctl run .flows/workflows/spec-to-code-v2.yaml \
-  --run-id feature-x \
+  --run-id issue-42 \
   --repo-dir /path/to/target-repo \
-  --executor opencode
+  --executor opencode \
+  --issue "https://github.com/owner/repo/issues/42"
+
+# Dry-run to preview without execution
+flowctl run .flows/workflows/spec-to-code-v2.yaml \
+  --run-id issue-42 \
+  --repo-dir /path/to/target-repo \
+  --issue "https://github.com/owner/repo/issues/42" \
+  --dry-run
 ```
 
 **What happens:**
@@ -80,18 +85,20 @@ Key attributes:
 ### Workflow Execution with Approval
 
 ```bash
-# Start workflow
+# Start workflow with issue URL
 flowctl run .flows/workflows/spec-to-code-v2.yaml \
-  --run-id feature-x \
-  --executor opencode
+  --run-id issue-42 \
+  --repo-dir /path/to/target-repo \
+  --executor opencode \
+  --issue "https://github.com/owner/repo/issues/42"
 
 # Workflow pauses at human node
 # Output shows:
 # Status: PAUSED
 # Current node: human_domain_gate
 # Reject counts: {}
-# Approve: flowctl run --resume --approve --run-id feature-x
-# Reject: flowctl run --resume --reject --reject-reason "<reason>" --run-id feature-x
+# Approve: flowctl run --resume --approve --run-id issue-42
+# Reject: flowctl run --resume --reject --reject-reason "<reason>" --run-id issue-42
 ```
 
 ### Approving or Rejecting
@@ -99,13 +106,13 @@ flowctl run .flows/workflows/spec-to-code-v2.yaml \
 ```bash
 # Approve - workflow continues to next node
 flowctl run .flows/workflows/spec-to-code-v2.yaml \
-  --run-id feature-x \
+  --run-id issue-42 \
   --resume \
   --approve
 
 # Reject - workflow returns to revision node with feedback
 flowctl run .flows/workflows/spec-to-code-v2.yaml \
-  --run-id feature-x \
+  --run-id issue-42 \
   --resume \
   --reject \
   --reject-reason "Domain model missing User entity"
@@ -128,7 +135,10 @@ Every workflow run saves state to `.flows/runs/<run-id>/state.json`:
 {
   "status": "PAUSED",
   "current_node": "human_domain_gate",
-  "context": {"clarify_md": "clarify.md"},
+  "context": {
+    "issue_url": "https://github.com/owner/repo/issues/42",
+    "clarify_md": "clarify.md"
+  },
   "iterations": 3,
   "reject_counts": {"human_domain_gate": 1}
 }
@@ -141,136 +151,155 @@ Every workflow run saves state to `.flows/runs/<run-id>/state.json`:
 flowctl run .flows/workflows/spec-to-code-v2.yaml --resume
 
 # Resume specific run
-flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id feature-x --resume
+flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume
 
 # Resume with approval
-flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id feature-x --resume --approve
+flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume --approve
 
 # Resume with rejection
-flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id feature-x --resume --reject --reject-reason "..."
+flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume --reject --reject-reason "..."
 ```
 
 ### Checking Workflow State
 
 ```bash
 # View state file
-cat .flows/runs/feature-x/state.json
+cat .flows/runs/issue-42/state.json
 
 # View execution log
-cat .flows/runs/feature-x/execution.log
+cat .flows/runs/issue-42/execution.log
 
 # View artifacts
-ls .flows/runs/feature-x/
+ls .flows/runs/issue-42/
 ```
 
-## Complete Example
+## Complete Example: Spec-to-Code Workflow
 
-### Example Workflow: Code Review Pipeline
+This example uses the built-in `spec-to-code-v2.yaml` workflow to transform a GitHub issue into a complete PR.
 
-Create `.flows/workflows/code-review.yaml`:
+### Workflow Overview
+
+The `spec-to-code-v2.yaml` workflow:
 
 ```yaml
-version: "1"
-
 nodes:
-  analyze:
-    role: developer
-    prompt: prompts/analyze.md
-    executor: opencode
-    inputs:
-      code: repo:src/main.py
-      architecture: repo:ARCHITECTURE.md
-    outputs:
-      analysis: analysis.md
-
-  human_review:
-    role: human
-    prompt: prompts/review-checklist.md
-    executor: human
-    inputs:
-      analysis: analysis.md
-    outputs:
-      verdict: verdict.txt
-      review_comments: review-comments.md
-
-  fix_issues:
-    role: developer
-    prompt: prompts/fix.md
-    executor: opencode
-    inputs:
-      analysis: analysis.md
-      review_comments: review-comments.md
-      reject_reason: reject-reason.txt
-    outputs:
-      fixes: fixes.md
-
-  write_code:
-    role: developer
+  fetch_issue:        # Fetch issue from GitHub URL
     executor: bash
-    command: scripts/apply-fixes.sh
-    inputs:
-      fixes: fixes.md
-      repo_root: repo-root.txt
-    outputs:
-      result: result.txt
+    inputs: {issue_url: issue-url.txt}
+    outputs: {requirement: requirement.md, repo_root: repo-root.txt}
 
-transitions:
-  - from: __start__
-    to: analyze
-  - from: analyze
-    to: human_review
-  - from: human_review
-    to: write_code
-    when: verdict == "approved"
-  - from: human_review
-    to: fix_issues
-    when: verdict == "rejected"
-  - from: fix_issues
-    to: human_review
-  - from: write_code
-    to: __end__
+  ba:                 # Business analyst clarifies requirements
+    executor: opencode
+    inputs:
+      requirement: requirement.md
+      memory_ba: workflow:memory/ba.md
+    outputs: {clarify_md: clarify.md}
+
+  human_domain_gate:  # Human reviews domain model
+    executor: human
+    inputs: {clarify: clarify.md}
+    outputs: {verdict: verdict.txt}
+
+  architect:          # Architect designs solution
+    executor: opencode
+    inputs:
+      clarify: clarify.md
+      repo_architecture: repo:ARCHITECTURE.md    # Read from target repo
+    outputs: {design_md: design.md}
+
+  human_testability_gate:  # Human reviews design
+    executor: human
+
+  developer:          # Developer implements code
+    executor: opencode
+
+  human_code_review:  # Human reviews code
+    executor: human
+
+  test_developer:     # Test developer writes tests
+    executor: opencode
+
+  human_test_review:  # Human reviews tests
+    executor: human
+
+  create_pr:          # Create GitHub PR
+    executor: bash
 ```
 
-### Running the Example
+### Running with GitHub Issue
 
 ```bash
-# Step 1: Initialize
-flowctl init
+# Step 1: Run workflow with GitHub issue URL
+flowctl run .flows/workflows/spec-to-code-v2.yaml \
+  --run-id issue-42 \
+  --repo-dir /path/to/target-repo \
+  --executor opencode \
+  --issue "https://github.com/owner/repo/issues/42"
 
-# Step 2: Create prompts
-mkdir -p .flows/prompts
-echo "Analyze the code for issues. Output: analysis.md" > .flows/prompts/analyze.md
-echo "Review analysis. Write 'approved' or 'rejected' to verdict.txt" > .flows/prompts/review-checklist.md
-echo "Fix issues based on review comments" > .flows/prompts/fix.md
+# This writes issue URL to .flows/runs/issue-42/issue-url.txt
+# Workflow starts at fetch_issue node
+```
 
-# Step 3: Run workflow (dry-run first)
-flowctl run .flows/workflows/code-review.yaml \
-  --run-id review-1 \
-  --repo-dir /path/to/your/repo \
-  --dry-run
+### Human Approval Flow
 
-# Step 4: Run with opencode executor
-flowctl run .flows/workflows/code-review.yaml \
-  --run-id review-1 \
-  --repo-dir /path/to/your/repo \
-  --executor opencode
+The workflow has 4 human approval gates:
 
-# Step 5: Review output, approve or reject
-# Workflow pauses at human_review node
+```bash
+# Workflow pauses at human_domain_gate
+# Output shows:
+# Status: PAUSED
+# Current node: human_domain_gate
 
-# Approve:
-flowctl run .flows/workflows/code-review.yaml --run-id review-1 --resume --approve
+# Approve domain model:
+flowctl run .flows/workflows/spec-to-code-v2.yaml \
+  --run-id issue-42 \
+  --resume \
+  --approve
 
-# Reject with feedback:
-flowctl run .flows/workflows/code-review.yaml \
-  --run-id review-1 \
+# Reject with feedback (workflow returns to ba node):
+flowctl run .flows/workflows/spec-to-code-v2.yaml \
+  --run-id issue-42 \
   --resume \
   --reject \
-  --reject-reason "Missing error handling in analyze.md"
+  --reject-reason "Missing User entity in domain model"
+```
 
-# Step 6: Check final state
-cat .flows/runs/review-1/state.json
-cat .flows/runs/review-1/result.txt
+### Resume After Interruption
+
+```bash
+# Workflow was interrupted (e.g., at human_testability_gate)
+# Check current state:
+cat .flows/runs/issue-42/state.json
+
+# Resume workflow:
+flowctl run .flows/workflows/spec-to-code-v2.yaml \
+  --run-id issue-42 \
+  --resume
+
+# Resume with approval:
+flowctl run .flows/workflows/spec-to-code-v2.yaml \
+  --run-id issue-42 \
+  --resume \
+  --approve
+```
+
+### Check Final Results
+
+```bash
+# View final state
+cat .flows/runs/issue-42/state.json
+
+# View PR URL (final output)
+cat .flows/runs/issue-42/pr-url.txt
+
+# View all artifacts
+ls .flows/runs/issue-42/
+# clarify.md       - Domain model
+# design.md        - Architecture design
+# implementation.md - Code implementation
+# test-results.md  - Test report
+# final-review.md  - Final review
+# reflect.md       - Reflection/learnings
 ```
 
 ## Quick Reference
@@ -281,12 +310,13 @@ cat .flows/runs/review-1/result.txt
 | `flowctl run <workflow> --dry-run` | Mock execution |
 | `flowctl run <workflow> --run-id <id>` | Named run for tracking |
 | `flowctl run <workflow> --repo-dir <path>` | Target repository path |
+| `flowctl run <workflow> --issue <url>` | GitHub issue URL to process |
 | `flowctl run <workflow> --resume` | Resume interrupted workflow |
 | `flowctl run <workflow> --resume --approve` | Approve pending node |
 | `flowctl run <workflow> --resume --reject --reject-reason "<text>"` | Reject with feedback |
 
 ## Next Steps
 
-- Read [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design
-- Explore [spec-to-code-v2.yaml](.flows/workflows/spec-to-code-v2.yaml) for full workflow example
-- Check [TEST-ARCHITECTURE.md](docs/sdet/TEST-ARCHITECTURE.md) for testing guide
+- Read [ARCHITECTURE.md](../ARCHITECTURE.md) for detailed design
+- Explore [spec-to-code-v2.yaml](../.flows/workflows/spec-to-code-v2.yaml) for full workflow
+- Check [TEST-ARCHITECTURE.md](../docs/sdet/TEST-ARCHITECTURE.md) for testing guide
