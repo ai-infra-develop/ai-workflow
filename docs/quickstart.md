@@ -5,11 +5,14 @@ This guide walks you through flowctl's core features in 10 minutes.
 ## Prerequisites
 
 ```bash
-# Install flowctl
+# Install flowctl with uv
+uv pip install -e .
+
+# Or install with pip
 pip install -e .
 
 # Initialize project structure
-flowctl init
+uv run flowctl init
 ```
 
 ## 1. Basic Workflow Execution
@@ -24,18 +27,16 @@ Flowctl uses three directories for file resolution:
 | `workflow_dir` | Shared files across runs | `.flows/` |
 | `repo_dir` | Target repository files | CLI `--repo-dir` |
 
-### Running a Workflow
-
 ```bash
 # Run with specific run-id (for tracking)
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --repo-dir /path/to/target-repo \
   --executor opencode \
   --issue "https://github.com/owner/repo/issues/42"
 
 # Dry-run to preview without execution
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --repo-dir /path/to/target-repo \
   --issue "https://github.com/owner/repo/issues/42" \
@@ -82,11 +83,9 @@ Key attributes:
 - `role: human` — Human reviewer role
 - `outputs.verdict` — Approval/rejection result
 
-### Workflow Execution with Approval
-
 ```bash
 # Start workflow with issue URL
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --repo-dir /path/to/target-repo \
   --executor opencode \
@@ -97,21 +96,21 @@ flowctl run .flows/workflows/spec-to-code-v2.yaml \
 # Status: PAUSED
 # Current node: human_domain_gate
 # Reject counts: {}
-# Approve: flowctl run --resume --approve --run-id issue-42
-# Reject: flowctl run --resume --reject --reject-reason "<reason>" --run-id issue-42
+# Approve: uv run flowctl run --resume --approve --run-id issue-42
+# Reject: uv run flowctl run --resume --reject --reject-reason "<reason>" --run-id issue-42
 ```
 
 ### Approving or Rejecting
 
 ```bash
 # Approve - workflow continues to next node
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --resume \
   --approve
 
 # Reject - workflow returns to revision node with feedback
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --resume \
   --reject \
@@ -148,16 +147,16 @@ Every workflow run saves state to `.flows/runs/<run-id>/state.json`:
 
 ```bash
 # Resume latest run
-flowctl run .flows/workflows/spec-to-code-v2.yaml --resume
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml --resume
 
 # Resume specific run
-flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume
 
 # Resume with approval
-flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume --approve
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume --approve
 
 # Resume with rejection
-flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume --reject --reject-reason "..."
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml --run-id issue-42 --resume --reject --reject-reason "..."
 ```
 
 ### Checking Workflow State
@@ -230,7 +229,7 @@ nodes:
 
 ```bash
 # Step 1: Run workflow with GitHub issue URL
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --repo-dir /path/to/target-repo \
   --executor opencode \
@@ -251,13 +250,13 @@ The workflow has 4 human approval gates:
 # Current node: human_domain_gate
 
 # Approve domain model:
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --resume \
   --approve
 
 # Reject with feedback (workflow returns to ba node):
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --resume \
   --reject \
@@ -272,12 +271,12 @@ flowctl run .flows/workflows/spec-to-code-v2.yaml \
 cat .flows/runs/issue-42/state.json
 
 # Resume workflow:
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --resume
 
 # Resume with approval:
-flowctl run .flows/workflows/spec-to-code-v2.yaml \
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --run-id issue-42 \
   --resume \
   --approve
@@ -306,14 +305,14 @@ ls .flows/runs/issue-42/
 
 | Command | Description |
 |---------|-------------|
-| `flowctl init` | Initialize `.flows/` structure |
-| `flowctl run <workflow> --dry-run` | Mock execution |
-| `flowctl run <workflow> --run-id <id>` | Named run for tracking |
-| `flowctl run <workflow> --repo-dir <path>` | Target repository path |
-| `flowctl run <workflow> --issue <url>` | GitHub issue URL to process |
-| `flowctl run <workflow> --resume` | Resume interrupted workflow |
-| `flowctl run <workflow> --resume --approve` | Approve pending node |
-| `flowctl run <workflow> --resume --reject --reject-reason "<text>"` | Reject with feedback |
+| `uv run flowctl init` | Initialize `.flows/` structure |
+| `uv run flowctl run <workflow> --dry-run` | Mock execution |
+| `uv run flowctl run <workflow> --run-id <id>` | Named run for tracking |
+| `uv run flowctl run <workflow> --repo-dir <path>` | Target repository path |
+| `uv run flowctl run <workflow> --issue <url>` | GitHub issue URL to process |
+| `uv run flowctl run <workflow> --resume` | Resume interrupted workflow |
+| `uv run flowctl run <workflow> --resume --approve` | Approve pending node |
+| `uv run flowctl run <workflow> --resume --reject --reject-reason "<text>"` | Reject with feedback |
 
 ## Next Steps
 
