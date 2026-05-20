@@ -171,22 +171,22 @@ transitions:
 
   - from: human_domain_gate
     to: architect
-    when: verdict == "APPROVED"
+    when: verdict == "yes"
 
   - from: human_domain_gate
     to: ba
-    when: verdict == "BLOCKED"
+    when: verdict == "no"
 
   - from: architect
     to: human_testability_gate
 
   - from: human_testability_gate
     to: test_arch
-    when: verdict == "APPROVED"
+    when: verdict == "yes"
 
   - from: human_testability_gate
     to: architect
-    when: verdict == "BLOCKED"
+    when: verdict == "no"
 
   - from: test_arch
     to: developer
@@ -196,22 +196,22 @@ transitions:
 
   - from: human_code_review
     to: test_developer
-    when: verdict == "APPROVED"
+    when: verdict == "yes"
 
   - from: human_code_review
     to: developer
-    when: verdict == "BLOCKED"
+    when: verdict == "no"
 
   - from: test_developer
     to: human_test_review
 
   - from: human_test_review
     to: final_review
-    when: verdict == "APPROVED"
+    when: verdict == "yes"
 
   - from: human_test_review
     to: test_developer
-    when: verdict == "BLOCKED"
+    when: verdict == "no"
 
   - from: final_review
     to: reflect

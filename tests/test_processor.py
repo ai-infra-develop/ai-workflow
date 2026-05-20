@@ -308,3 +308,80 @@ def test_generate_output_with_prefix():
     }
     result = processor.process("# Task", context)
     assert "Write to memory/ba.md (workflow_dir: /flows/memory/ba.md)" in result
+
+
+def test_generate_input_with_repo_prefix():
+    processor = PromptProcessor()
+    node = Node(
+        role="dev",
+        prompt="test.md",
+        inputs={"architecture": "repo:ARCHITECTURE.md"},
+        outputs={},
+    )
+    context = {
+        "node": node,
+        "repo_dir": Path("/home/user/code/project"),
+        "run_dir": Path("/runs/test"),
+    }
+    result = processor.process("# Task", context)
+    assert "Read from ARCHITECTURE.md (repo_dir: /home/user/code/project/ARCHITECTURE.md)" in result
+
+
+def test_generate_output_with_repo_prefix():
+    processor = PromptProcessor()
+    node = Node(
+        role="dev",
+        prompt="test.md",
+        inputs={},
+        outputs={"main_file": "repo:src/main.py"},
+    )
+    context = {
+        "node": node,
+        "repo_dir": Path("/home/user/code/project"),
+        "run_dir": Path("/runs/test"),
+    }
+    result = processor.process("# Task", context)
+    assert "Write to src/main.py (repo_dir: /home/user/code/project/src/main.py)" in result
+
+
+def test_mixed_prefixes_in_processed_prompt():
+    processor = PromptProcessor()
+    node = Node(
+        role="dev",
+        prompt="test.md",
+        inputs={
+            "clarify": "run:clarify.md",
+            "memory": "workflow:memory/architect.md",
+            "architecture": "repo:ARCHITECTURE.md",
+        },
+        outputs={
+            "design": "run:design.md",
+            "memory_update": "workflow:memory/ba.md",
+        },
+    )
+    context = {
+        "node": node,
+        "run_dir": Path("/runs/test"),
+        "workflow_dir": Path("/flows"),
+        "repo_dir": Path("/repo"),
+    }
+    result = processor.process("# Task", context)
+    assert "run_dir: /runs/test/clarify.md" in result
+    assert "workflow_dir: /flows/memory/architect.md" in result
+    assert "repo_dir: /repo/ARCHITECTURE.md" in result
+    assert "run_dir: /runs/test/design.md" in result
+    assert "workflow_dir: /flows/memory/ba.md" in result
+
+
+def test_empty_path_graceful_handling():
+    processor = PromptProcessor()
+    node = Node(
+        role="dev",
+        prompt="test.md",
+        inputs={"empty": ""},
+        outputs={"whitespace": "   "},
+    )
+    context = {"node": node, "run_dir": Path("/runs/test")}
+    result = processor.process("# Task", context)
+    assert "## Input" in result
+    assert "## Output" in result
