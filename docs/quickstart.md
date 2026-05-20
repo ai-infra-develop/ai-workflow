@@ -4,8 +4,20 @@ This guide walks you through flowctl's core features in 10 minutes.
 
 ## Prerequisites
 
+### Required Dependencies
+
+| Dependency | Purpose | Install |
+|------------|---------|---------|
+| **uv** | Python package manager | `curl -LsSf https://astral.sh/uv/install.sh | sh` |
+| **gh** | GitHub CLI (for fetch_issue, create_branch, create_pr nodes) | `brew install gh` or see [github.com/cli/cli](https://github.com/cli/cli) |
+| **opencode** | AI executor (optional, for opencode executor) | See [opencode docs](https://opencode.ai) |
+
+### Install flowctl
+
 ```bash
-# Install flowctl with uv
+# Clone and install with uv
+git clone https://github.com/ai-infra-develop/ai-workflow.git
+cd ai-workflow
 uv pip install -e .
 
 # Or install with pip
