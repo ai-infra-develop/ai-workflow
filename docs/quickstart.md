@@ -12,20 +12,13 @@ This guide walks you through flowctl's core features in 10 minutes.
 | **gh** | GitHub CLI (for fetch_issue, create_branch, create_pr nodes) | `brew install gh` or see [github.com/cli/cli](https://github.com/cli/cli) |
 | **opencode** | AI executor (optional, for opencode executor) | See [opencode docs](https://opencode.ai) |
 
-### Install flowctl
+### clone flowctl
 
 ```bash
 # Clone and install with uv
 git clone https://github.com/ai-infra-develop/ai-workflow.git
 cd ai-workflow
-uv pip install -e .
 
-# Or install with pip
-pip install -e .
-
-# Initialize project structure
-uv run flowctl init
-```
 
 ## 1. Basic Workflow Execution
 
@@ -46,6 +39,13 @@ uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
   --repo-dir /path/to/target-repo \
   --executor opencode \
   --issue "https://github.com/owner/repo/issues/42"
+
+uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
+  --run-id issue-42 \
+  --repo-dir /path/to/target-repo \
+  --executor opencode \
+  --resume 
+
 
 # Dry-run to preview without execution
 uv run flowctl run .flows/workflows/spec-to-code-v2.yaml \
