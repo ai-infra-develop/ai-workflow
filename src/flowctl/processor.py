@@ -2,6 +2,7 @@ from typing import Protocol
 import re
 import logging
 from pathlib import Path
+from flowctl.path_utils import parse_path_prefix, resolve_prefixed_path
 from flowctl.models import Node
 
 logger = logging.getLogger(__name__)
@@ -11,61 +12,12 @@ class Processor(Protocol):
     """Interface for prompt/content processors."""
     
     def process(self, content: str, context: dict) -> str:
-        """Transform content before execution.
-        
-        Args:
-            content: The prompt/content to process
-            context: Execution context with 'node', 'run_dir', etc.
-            
-        Returns:
-            Processed content
-        """
+        """Transform content before execution."""
         ...
 
 
 class PromptProcessor:
     """Processor that injects I/O sections from node definitions."""
-    
-    def _parse_prefix(self, filename: str) -> tuple[str, str]:
-        """Extract prefix and relative path from filename.
-        
-        Args:
-            filename: Filename with optional prefix (e.g., "run:file.md", "workflow:mem/ba.md")
-            
-        Returns:
-            Tuple of (prefix, relative_path)
-            prefix is one of: "run", "workflow", "repo"
-        """
-        if filename.startswith("workflow:"):
-            return "workflow", filename[len("workflow:"):]
-        elif filename.startswith("repo:"):
-            return "repo", filename[len("repo:"):]
-        elif filename.startswith("run:"):
-            return "run", filename[len("run:"):]
-        else:
-            return "run", filename
-    
-    def _resolve_path(self, prefix: str, rel_path: str, context: dict) -> Path:
-        """Resolve relative path to absolute path based on prefix.
-        
-        Args:
-            prefix: One of "run", "workflow", "repo"
-            rel_path: Relative path from the prefix directory
-            context: Context dict with 'run_dir', 'workflow_dir', 'repo_dir'
-            
-        Returns:
-            Resolved absolute Path, or relative Path if base dir not available
-        """
-        if prefix == "workflow":
-            base_dir = context.get("workflow_dir")
-        elif prefix == "repo":
-            base_dir = context.get("repo_dir")
-        else:
-            base_dir = context.get("run_dir")
-        
-        if base_dir:
-            return base_dir / rel_path
-        return Path(rel_path)
     
     def process(self, content: str, context: dict) -> str:
         if not isinstance(content, str):
@@ -117,11 +69,19 @@ class PromptProcessor:
         if not inputs:
             return ""
         
+        run_dir = context.get("run_dir")
+        workflow_dir = context.get("workflow_dir")
+        repo_dir = context.get("repo_dir")
+        
         lines = ["## Input", ""]
         for key, filename in inputs.items():
-            prefix, rel_path = self._parse_prefix(filename)
-            abs_path = self._resolve_path(prefix, rel_path, context)
-            lines.append(f"- {key}: Read from {rel_path} ({prefix}_dir: {abs_path})")
+            prefix, rel_path = parse_path_prefix(filename)
+            if run_dir:
+                abs_path = resolve_prefixed_path(filename, run_dir, workflow_dir, repo_dir)
+            else:
+                abs_path = Path(rel_path)
+            prefix_name = prefix.rstrip(":")
+            lines.append(f"- {key}: Read from {rel_path} ({prefix_name}_dir: {abs_path})")
         
         return "\n".join(lines)
     
@@ -129,10 +89,18 @@ class PromptProcessor:
         if not outputs:
             return ""
         
+        run_dir = context.get("run_dir")
+        workflow_dir = context.get("workflow_dir")
+        repo_dir = context.get("repo_dir")
+        
         lines = ["## Output", ""]
         for key, filename in outputs.items():
-            prefix, rel_path = self._parse_prefix(filename)
-            abs_path = self._resolve_path(prefix, rel_path, context)
-            lines.append(f"- {key}: Write to {rel_path} ({prefix}_dir: {abs_path})")
+            prefix, rel_path = parse_path_prefix(filename)
+            if run_dir:
+                abs_path = resolve_prefixed_path(filename, run_dir, workflow_dir, repo_dir)
+            else:
+                abs_path = Path(rel_path)
+            prefix_name = prefix.rstrip(":")
+            lines.append(f"- {key}: Write to {rel_path} ({prefix_name}_dir: {abs_path})")
         
         return "\n".join(lines)
