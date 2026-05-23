@@ -259,7 +259,16 @@ def test_validate_outputs_all_exist():
         run_dir = Path(tmp)
         (run_dir / "output1.txt").write_text("value1")
         (run_dir / "output2.txt").write_text("value2")
-        executor._validate_outputs({"out1": "output1.txt", "out2": "output2.txt"}, run_dir)
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={},
+            outputs={"out1": "output1.txt", "out2": "output2.txt"},
+            run_dir=run_dir,
+        )
+        executor._validate_outputs(inp.outputs, inp)
 
 
 def test_validate_outputs_missing_one():
@@ -267,15 +276,33 @@ def test_validate_outputs_missing_one():
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = Path(tmp)
         (run_dir / "output1.txt").write_text("value1")
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={},
+            outputs={"out1": "output1.txt", "out2": "output2.txt"},
+            run_dir=run_dir,
+        )
         with pytest.raises(RuntimeError, match="Missing files"):
-            executor._validate_outputs({"out1": "output1.txt", "out2": "output2.txt"}, run_dir)
+            executor._validate_outputs(inp.outputs, inp)
 
 
 def test_validate_outputs_no_outputs():
     executor = BashExecutor(script_path="success.sh")
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = Path(tmp)
-        executor._validate_outputs({}, run_dir)
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={},
+            outputs={},
+            run_dir=run_dir,
+        )
+        executor._validate_outputs({}, inp)
 
 
 def test_read_outputs_success():
@@ -283,7 +310,16 @@ def test_read_outputs_success():
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = Path(tmp)
         (run_dir / "output.txt").write_text("test content")
-        outputs = executor._read_outputs({"output": "output.txt"}, run_dir)
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={},
+            outputs={"output": "output.txt"},
+            run_dir=run_dir,
+        )
+        outputs = executor._read_outputs(inp.outputs, inp)
         assert outputs == {"output": "test content"}
 
 
@@ -324,3 +360,104 @@ def test_full_execution_with_workflow_dir(workflow_dir_with_scripts):
         assert "output" in result.outputs
         assert (run_dir / "output.txt").exists()
         assert "test output" in result.outputs["output"]
+
+
+def test_read_inputs_with_run_prefix():
+    executor = BashExecutor(script_path="success.sh")
+    with tempfile.TemporaryDirectory() as tmp:
+        run_dir = Path(tmp)
+        (run_dir / "input.txt").write_text("run_value")
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={"input": "run:input.txt"},
+            outputs={},
+            run_dir=run_dir,
+        )
+        args = executor._read_inputs(inp)
+        assert args == ["run_value"]
+
+
+def test_read_inputs_with_workflow_prefix():
+    executor = BashExecutor(script_path="success.sh")
+    with tempfile.TemporaryDirectory() as tmp:
+        run_dir = Path(tmp)
+        workflow_dir = Path(tmp) / "workflow"
+        workflow_dir.mkdir()
+        (workflow_dir / "shared.txt").write_text("workflow_value")
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={"input": "workflow:shared.txt"},
+            outputs={},
+            run_dir=run_dir,
+            workflow_dir=workflow_dir,
+        )
+        args = executor._read_inputs(inp)
+        assert args == ["workflow_value"]
+
+
+def test_read_inputs_with_repo_prefix():
+    executor = BashExecutor(script_path="success.sh")
+    with tempfile.TemporaryDirectory() as tmp:
+        run_dir = Path(tmp)
+        repo_dir = Path(tmp) / "repo"
+        repo_dir.mkdir()
+        (repo_dir / "ARCHITECTURE.md").write_text("repo_content")
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={"arch": "repo:ARCHITECTURE.md"},
+            outputs={},
+            run_dir=run_dir,
+            repo_dir=repo_dir,
+        )
+        args = executor._read_inputs(inp)
+        assert args == ["repo_content"]
+
+
+def test_validate_outputs_with_workflow_prefix():
+    executor = BashExecutor(script_path="success.sh")
+    with tempfile.TemporaryDirectory() as tmp:
+        run_dir = Path(tmp)
+        workflow_dir = Path(tmp) / "workflow"
+        workflow_dir.mkdir()
+        (workflow_dir / "output.txt").write_text("result")
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={},
+            outputs={"output": "workflow:output.txt"},
+            run_dir=run_dir,
+            workflow_dir=workflow_dir,
+        )
+        executor._validate_outputs(inp.outputs, inp)
+
+
+def test_read_outputs_with_repo_prefix():
+    executor = BashExecutor(script_path="success.sh")
+    with tempfile.TemporaryDirectory() as tmp:
+        run_dir = Path(tmp)
+        repo_dir = Path(tmp) / "repo"
+        repo_dir.mkdir()
+        (repo_dir / "artifact.md").write_text("repo_artifact")
+        inp = ExecutorInput(
+            role="test",
+            prompt="Test",
+            prompt_path="test.md",
+            skill_paths=[],
+            inputs={},
+            outputs={"artifact": "repo:artifact.md"},
+            run_dir=run_dir,
+            repo_dir=repo_dir,
+        )
+        outputs = executor._read_outputs(inp.outputs, inp)
+        assert outputs == {"artifact": "repo_artifact"}
