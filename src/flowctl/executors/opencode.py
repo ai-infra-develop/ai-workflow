@@ -2,38 +2,13 @@ import subprocess
 import json
 from pathlib import Path
 from .base import ExecutorAdapter, ExecutorInput, ExecutorResult
+from flowctl.path_utils import resolve_prefixed_path
 
 
 class OpencodeAdapter(ExecutorAdapter):
     def __init__(self, model: str = None, agent: str = None):
         self.model = model
         self.agent = agent
-
-    def _parse_prefix(self, filename: str) -> tuple[str, str]:
-        """Extract prefix and relative path from filename."""
-        if filename.startswith("workflow:"):
-            return "workflow", filename[len("workflow:"):]
-        elif filename.startswith("repo:"):
-            return "repo", filename[len("repo:"):]
-        elif filename.startswith("run:"):
-            return "run", filename[len("run:"):]
-        else:
-            return "run", filename
-
-    def _resolve_output_path(self, filename: str, inp: ExecutorInput) -> Path:
-        """Resolve output file path based on prefix."""
-        prefix, rel_path = self._parse_prefix(filename)
-        
-        if prefix == "workflow":
-            base_dir = inp.workflow_dir
-        elif prefix == "repo":
-            base_dir = inp.repo_dir
-        else:
-            base_dir = inp.run_dir
-        
-        if base_dir:
-            return base_dir / rel_path
-        return inp.run_dir / rel_path
 
     def execute(self, inp: ExecutorInput) -> ExecutorResult:
         prompt_content = self._load_prompt(inp)
@@ -74,7 +49,7 @@ class OpencodeAdapter(ExecutorAdapter):
             session_id = self._extract_session_id(proc.stdout) or self._extract_session_id(proc.stderr)
             self._extract_and_write_outputs(proc.stdout, inp.outputs, inp.run_dir)
             for key, filename in inp.outputs.items():
-                artifact_path = self._resolve_output_path(filename, inp)
+                artifact_path = resolve_prefixed_path(filename, inp.run_dir, inp.workflow_dir, inp.repo_dir)
                 if artifact_path.exists():
                     outputs[key] = artifact_path.read_text()
 
