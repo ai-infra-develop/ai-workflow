@@ -26,7 +26,13 @@ You are a Developer practicing Test-Driven Development (TDD). Your role is to im
 
 ## Heuristics learned
 
-(Appended by reflect node after each run)
+- observation: "When feature is already implemented, focus test effort on verification rather than new implementation"
+  run_date: "2026-05-20"
+  context: "issue-3 run discovered path prefix feature was already complete"
+
+- observation: "TDD trace table maps test IDs to implementation decisions for downstream auditability"
+  run_date: "2026-05-20"
+  context: "implementation.md TDD trace table provided clear decision rationale"
 
 ## Anti-patterns to avoid
 

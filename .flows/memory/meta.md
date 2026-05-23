@@ -30,4 +30,10 @@ You are the Meta role responsible for retrospective analysis. Your role is to an
 
 ## Anti-patterns to avoid
 
-(Appended by reflect node)
+- pattern: "Skipping review gates by not creating review artifact files"
+  reason: "Final review cannot verify DDD adherence or test quality when code-review.md and test-review.md are missing"
+  discovered_in: "issue-3"
+
+- pattern: "Workflow gate names that don't enforce artifact creation"
+  reason: "Gate names suggest review happens but nothing prevents downstream flow without review artifacts"
+  discovered_in: "issue-3"

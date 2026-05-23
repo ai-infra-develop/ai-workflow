@@ -35,7 +35,7 @@ class BashExecutor(ExecutorAdapter):
         self._validate_script(script_file)
         args = self._read_inputs(inp)
         cmd = self._build_command(script_file, args)
-        result = self._execute_script(cmd, inp.run_dir)
+        result = self._execute_script(cmd, inp)
 
         if result.returncode != 0:
             raise RuntimeError(
@@ -111,13 +111,18 @@ class BashExecutor(ExecutorAdapter):
         return cmd
 
     def _execute_script(
-        self, cmd: list[str], run_dir: Path
+        self, cmd: list[str], inp: ExecutorInput
     ) -> subprocess.CompletedProcess:
-        """Execute script with RUN_DIR environment variable."""
+        """Execute script with RUN_DIR and REPO_DIR environment variables."""
         env = {
             **os.environ,
-            "RUN_DIR": str(run_dir.resolve()),
+            "RUN_DIR": str(inp.run_dir.resolve()),
         }
+        
+        if inp.repo_dir:
+            env["REPO_DIR"] = str(inp.repo_dir.resolve())
+        else:
+            env["REPO_DIR"] = str(inp.run_dir.resolve())
 
         try:
             return subprocess.run(
@@ -125,7 +130,7 @@ class BashExecutor(ExecutorAdapter):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                cwd=str(run_dir.resolve()),
+                cwd=str(inp.run_dir.resolve()),
                 env=env,
                 timeout=self.timeout_seconds,
             )

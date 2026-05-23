@@ -59,7 +59,7 @@ class PromptProcessor:
         if prefix == "workflow":
             base_dir = context.get("workflow_dir")
         elif prefix == "repo":
-            base_dir = context.get("repo_dir")
+            base_dir = context.get("repo_dir") or context.get("run_dir")
         else:
             base_dir = context.get("run_dir")
         
