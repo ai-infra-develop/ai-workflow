@@ -155,6 +155,48 @@ nodes:
 
 **Note:** Omitting a prefix defaults to `run:` for backward compatibility.
 
+### Running from Outside the Target Repo
+
+Flowctl can run from anywhere, targeting a specific repository:
+
+```bash
+# Running from ai-workflow tool directory
+flowctl run --repo-dir /abs/path/to/target-repo .flows/workflows/spec-to-code.yaml
+```
+
+**Path Resolution Logic:**
+
+1. **repo_dir** is resolved first:
+   - CLI `--repo-dir` (absolute): used as-is
+   - CLI `--repo-dir` (relative): resolved from cwd
+   - Config `repo_dir` (relative): resolved from config file's parent directory
+
+2. **run_dir** and **workflow_dir** resolve from `repo_dir` (when set), otherwise from cwd:
+
+| Scenario | run_dir resolves to | workflow_dir resolves to |
+|----------|--------------------|-------------------------| 
+| `--repo-dir /path/to/repo` | `/path/to/repo/.flows/runs` | `/path/to/repo/.flows` |
+| Config: `repo_dir: ..` (in `.flows/config.yaml`) | `repo/.flows/runs` | `repo/.flows` |
+| No repo_dir set | `cwd/.flows/runs` | `cwd/.flows` |
+
+**Example Directory Structure:**
+
+```
+target-repo/                     # --repo-dir
+├── src/                         # user's actual source code
+├── ARCHITECTURE.md              # repo: prefix reads this
+├── .flows/                      # workflow_dir
+│   ├── config.yaml              # contains: repo_dir: ..
+│   ├── workflows/
+│   ├── prompts/
+│   ├── memory/                  # workflow: prefix writes here
+│   └── runs/                    # run_dir
+│       └── issue-10/            # run: prefix writes here
+│           ├── requirement.md
+│           └── design.md
+└── .gitignore                   # should include .flows/
+```
+
 ## Workflow Structure
 
 Workflows are defined in YAML with nodes and transitions:
