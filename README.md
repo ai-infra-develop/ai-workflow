@@ -102,7 +102,7 @@ flowctl run --workflow-dir ~/shared-workflows
 
 **Precedence:** CLI options > config values > defaults
 
-**Relative paths** are resolved from current working directory where `flowctl` is executed.
+**Relative paths** are resolved from `repo_dir` when set, otherwise from current working directory where `flowctl` is executed.
 
 ### Path Prefixes for Input/Output Resolution
 
