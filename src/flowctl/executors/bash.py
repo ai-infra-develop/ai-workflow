@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from .base import ExecutorAdapter, ExecutorInput, ExecutorResult
+from flowctl.path_utils import resolve_prefixed_path
 
 
 class BashExecutor(ExecutorAdapter):
@@ -44,8 +45,8 @@ class BashExecutor(ExecutorAdapter):
                 f"stderr: {result.stderr}"
             )
 
-        self._validate_outputs(inp.outputs, inp.run_dir)
-        outputs = self._read_outputs(inp.outputs, inp.run_dir)
+        self._validate_outputs(inp.outputs, inp)
+        outputs = self._read_outputs(inp.outputs, inp)
 
         return ExecutorResult(
             outputs=outputs,
@@ -90,12 +91,7 @@ class BashExecutor(ExecutorAdapter):
         args = []
 
         for key, path_str in inp.inputs.items():
-            input_path = inp.run_dir / path_str
-
-            if not input_path.exists() and inp.workflow_dir:
-                workflow_path = inp.workflow_dir / path_str
-                if workflow_path.exists():
-                    input_path = workflow_path
+            input_path = resolve_prefixed_path(path_str, inp.run_dir, inp.workflow_dir, inp.repo_dir)
 
             if input_path.exists():
                 args.append(input_path.read_text().rstrip('\n'))
@@ -134,14 +130,14 @@ class BashExecutor(ExecutorAdapter):
                 f"Script execution timed out after {self.timeout_seconds}s: {cmd[1]}"
             )
 
-    def _validate_outputs(self, outputs: dict[str, str], run_dir: Path) -> None:
+    def _validate_outputs(self, outputs: dict[str, str], inp: ExecutorInput) -> None:
         """Validate all output files exist."""
         if not outputs:
             return
 
         missing = []
         for key, path_str in outputs.items():
-            output_path = run_dir / path_str
+            output_path = resolve_prefixed_path(path_str, inp.run_dir, inp.workflow_dir, inp.repo_dir)
             if not output_path.exists():
                 missing.append(f"{key}: {output_path}")
 
@@ -151,11 +147,11 @@ class BashExecutor(ExecutorAdapter):
                 "\n".join(f"  - {m}" for m in missing)
             )
 
-    def _read_outputs(self, outputs: dict[str, str], run_dir: Path) -> dict[str, str]:
+    def _read_outputs(self, outputs: dict[str, str], inp: ExecutorInput) -> dict[str, str]:
         """Read output file contents."""
         result = {}
         for key, path_str in outputs.items():
-            output_path = run_dir / path_str
+            output_path = resolve_prefixed_path(path_str, inp.run_dir, inp.workflow_dir, inp.repo_dir)
             if output_path.exists():
                 result[key] = output_path.read_text()
         return result

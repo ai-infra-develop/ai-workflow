@@ -135,3 +135,54 @@ def test_resolve_paths_repo_dir_none_without_config():
         ".flows/nonexistent.yaml", None, None, repo_dir_override=None
     )
     assert repo_dir is None
+
+
+import tempfile
+
+
+def test_relative_paths_resolve_from_repo_dir():
+    """When repo_dir is set via CLI, relative run_dir/workflow_dir resolve from it."""
+    run_dir, workflow_dir, repo_dir = resolve_paths(
+        ".flows/config.yaml", None, None, repo_dir_override="/tmp/my-repo"
+    )
+    assert run_dir == Path("/tmp/my-repo/.flows/runs")
+    assert workflow_dir == Path("/tmp/my-repo/.flows")
+    assert repo_dir == Path("/tmp/my-repo")
+
+
+def test_config_repo_dir_relative_resolves_from_config_parent():
+    """Config repo_dir: .. resolves from config file's parent directory."""
+    with tempfile.TemporaryDirectory() as tmp:
+        repo_dir = Path(tmp)
+        flows_dir = repo_dir / ".flows"
+        flows_dir.mkdir()
+        config_file = flows_dir / "config.yaml"
+        config_file.write_text("repo_dir: ..\nrun_dir: .flows/runs\nworkflow_dir: .flows\n")
+        
+        run_dir, workflow_dir, repo_dir_resolved = resolve_paths(
+            str(config_file), None, None, None
+        )
+        
+        assert repo_dir_resolved == repo_dir.resolve()
+        assert run_dir == repo_dir.resolve() / ".flows" / "runs"
+        assert workflow_dir == repo_dir.resolve() / ".flows"
+
+
+def test_cli_repo_dir_relative_resolves_from_cwd():
+    """CLI --repo-dir with relative path resolves from cwd."""
+    run_dir, workflow_dir, repo_dir = resolve_paths(
+        ".flows/config.yaml", None, None, repo_dir_override="relative-repo"
+    )
+    assert repo_dir == Path.cwd() / "relative-repo"
+    assert run_dir == repo_dir / ".flows" / "runs"
+    assert workflow_dir == repo_dir / ".flows"
+
+
+def test_relative_paths_fallback_to_cwd_without_repo_dir():
+    """When repo_dir not set, relative paths still resolve from cwd."""
+    run_dir, workflow_dir, repo_dir = resolve_paths(
+        ".flows/config.yaml", None, None, None
+    )
+    assert repo_dir is None
+    assert run_dir == Path.cwd() / ".flows" / "runs"
+    assert workflow_dir == Path.cwd() / ".flows"
