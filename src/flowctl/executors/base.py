@@ -26,6 +26,7 @@ class ExecutorResult:
     returncode: int
     stdout: str
     stderr: str
+    command: Optional[str] = None
 
 
 class ExecutorAdapter(ABC):

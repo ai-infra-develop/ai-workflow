@@ -51,4 +51,5 @@ class EchoAdapter(ExecutorAdapter):
             returncode=0,
             stdout="\n".join(stdout_lines),
             stderr="",
+            command=f"echo (role={inp.role})",
         )

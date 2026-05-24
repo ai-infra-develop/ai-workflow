@@ -14,8 +14,14 @@ class OpencodeAdapter(ExecutorAdapter):
         prompt_content = self._load_prompt(inp)
         
         cmd = ["opencode", "run"]
-        abs_run_dir = inp.run_dir.resolve()
-        cmd.extend(["--dir", str(abs_run_dir)])
+        
+        # Opencode runs in repo_dir (not run_dir) so it can write repo: prefix outputs
+        if inp.repo_dir:
+            work_dir = inp.repo_dir.resolve()
+        else:
+            work_dir = inp.run_dir.resolve()
+        
+        cmd.extend(["--dir", str(work_dir)])
         cmd.extend(["--format", "json"])
 
         if self.model:
@@ -31,7 +37,7 @@ class OpencodeAdapter(ExecutorAdapter):
             skill_file = inp.run_dir / Path(skill_path).name
             if src_skill.exists():
                 skill_file.write_text(src_skill.read_text())
-            cmd.extend(["--file", str(skill_file)])
+                cmd.extend(["--file", str(skill_file)])
 
         proc = subprocess.run(
             cmd,
@@ -39,7 +45,7 @@ class OpencodeAdapter(ExecutorAdapter):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            cwd=str(abs_run_dir),
+            cwd=str(work_dir),
         )
 
         outputs = {}
@@ -61,6 +67,7 @@ class OpencodeAdapter(ExecutorAdapter):
             returncode=proc.returncode,
             stdout=proc.stdout,
             stderr=proc.stderr,
+            command=" ".join(cmd),
         )
 
     def _extract_session_id(self, stdout: str) -> str | None:

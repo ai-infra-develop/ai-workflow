@@ -53,6 +53,7 @@ class BashExecutor(ExecutorAdapter):
             returncode=result.returncode,
             stdout=result.stdout,
             stderr=result.stderr,
+            command=" ".join(cmd),
         )
 
     def _resolve_script_path(self, workflow_dir: Optional[Path]) -> Path:

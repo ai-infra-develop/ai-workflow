@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 import yaml
 import click
 from .models import WorkflowDef, Node, FlowctlConfig
@@ -45,7 +46,6 @@ def load_flowctl_config(workflow_dir: Path | None) -> FlowctlConfig | None:
     if not config_path.exists():
         return FlowctlConfig()
     
-    import yaml
     with open(config_path) as f:
         data = yaml.safe_load(f) or {}
     return FlowctlConfig(**data)
@@ -246,7 +246,18 @@ def run_workflow(
 
         if dry_run:
             echo_adapter = registry.get("echo")
+            executor_start = time.time()
             result = echo_adapter.execute(inp)
+            executor_duration_ms = int((time.time() - executor_start) * 1000)
+            logger.log_executor(
+                next_node,
+                "echo",
+                result.command or "",
+                result.returncode,
+                result.stdout,
+                result.stderr,
+                executor_duration_ms,
+            )
             if result.stdout:
                 click.echo(result.stdout)
         else:
@@ -257,7 +268,18 @@ def run_workflow(
                 node_cfg = resolve_executor_config(node_def)
                 cfg = {**base_cfg, **node_cfg}
                 node_adapter = registry.get(executor_name, **cfg)
+            executor_start = time.time()
             result = node_adapter.execute(inp)
+            executor_duration_ms = int((time.time() - executor_start) * 1000)
+            logger.log_executor(
+                next_node,
+                executor_name,
+                result.command or "",
+                result.returncode,
+                result.stdout,
+                result.stderr,
+                executor_duration_ms,
+            )
 
         errors = validate_artifacts(node_def.outputs, run_dir, workflow_dir, repo_dir)
         logger.log_validation(next_node, errors)

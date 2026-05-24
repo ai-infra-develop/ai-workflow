@@ -27,6 +27,10 @@ class LogEntry:
     total_duration_ms: Optional[int] = None
     nodes_executed: Optional[int] = None
     status: Optional[str] = None
+    command: Optional[str] = None
+    stdout: Optional[str] = None
+    stderr: Optional[str] = None
+    returncode: Optional[int] = None
 
 
 class WorkflowLogger:
@@ -46,14 +50,39 @@ class WorkflowLogger:
         return time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
     
     def _write(self, entry: LogEntry):
-        if self.log_format == "json":
+        if entry.event == "executor":
+            lines = self._format_executor(entry)
+        elif self.log_format == "json":
             data = {k: v for k, v in entry.__dict__.items() if v is not None}
-            line = json.dumps(data)
+            lines = [json.dumps(data)]
         else:
-            line = self._format_text(entry)
+            lines = [self._format_text(entry)]
         
         with open(self.log_file, "a") as f:
-            f.write(line + "\n")
+            for line in lines:
+                f.write(line + "\n")
+    
+    def _format_executor(self, entry: LogEntry) -> list[str]:
+        lines = [
+            f"[{entry.timestamp}] [{entry.level}] [{entry.event}]",
+            f"  node: {entry.node}",
+            f"  executor: {entry.executor}",
+            f"  command: {entry.command}",
+            f"  returncode: {entry.returncode}",
+            f"  duration: {entry.duration_ms}ms",
+        ]
+        
+        if entry.stdout:
+            lines.append("  stdout:")
+            for line in entry.stdout.splitlines():
+                lines.append(f"    {line}")
+        
+        if entry.stderr:
+            lines.append("  stderr:")
+            for line in entry.stderr.splitlines():
+                lines.append(f"    {line}")
+        
+        return lines
     
     def _format_text(self, entry: LogEntry) -> str:
         parts = [f"[{entry.timestamp}] [{entry.level}] [{entry.event}]"]
@@ -189,5 +218,30 @@ class WorkflowLogger:
             event="warning",
             node=node_id,
             error=message,
+        )
+        self._write(entry)
+    
+    def log_executor(
+        self,
+        node_id: str,
+        executor: str,
+        command: str,
+        returncode: int,
+        stdout: str = None,
+        stderr: str = None,
+        duration_ms: int = None,
+    ):
+        entry = LogEntry(
+            timestamp=self._timestamp(),
+            level="DEBUG",
+            run_id=self.run_id,
+            event="executor",
+            node=node_id,
+            executor=executor,
+            command=command,
+            returncode=returncode,
+            stdout=stdout[:10000] if stdout else None,
+            stderr=stderr[:10000] if stderr else None,
+            duration_ms=duration_ms,
         )
         self._write(entry)

@@ -1,0 +1,45 @@
+version: "1"
+
+roles:
+  coder:
+    name: coder
+    executor: opencode
+    model: alibaba-cn/glm-5
+
+nodes:
+  setup:
+    role: coder
+    executor: bash
+    command: scripts/setup.sh
+    outputs:
+      setup_result: run:setup-output.txt
+
+  write-code:
+    role: coder
+    executor: opencode
+    prompt: prompts/task.md
+    skills:
+      - skills/minimal.md
+    inputs:
+      task: run:task-input.txt
+    outputs:
+      code: repo:src/implementation.py
+
+  verify:
+    role: coder
+    executor: echo
+    prompt: prompts/verify.md
+    inputs:
+      code: repo:src/implementation.py
+    outputs:
+      verified: run:verified.txt
+
+transitions:
+  - from: __start__
+    to: setup
+  - from: setup
+    to: write-code
+  - from: write-code
+    to: verify
+  - from: verify
+    to: __end__
