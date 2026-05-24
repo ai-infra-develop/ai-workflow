@@ -15,11 +15,12 @@ E2e tests for flowctl CLI.
 `tests/integration/opencode_e2e/` - Source workflow_dir for e2e tests.
 
 Contains:
-- `workflow.yaml` - 3-node workflow (setup → write-code → verify)
+- `workflows/workflow.yaml` - 3-node workflow (setup → write-code → verify)
 - `prompts/task.md` - Task prompt for opencode
 - `prompts/verify.md` - Verify prompt for echo
 - `skills/minimal.md` - Skill file
 - `scripts/setup.sh` - Bash setup script
+- `.claude/skills/testing/test_skill.md` - Opencode skill (auto-loaded)
 
 See `tests/integration/opencode_e2e/README.md` for details.
 
@@ -53,6 +54,10 @@ pytest tests/integration/test_opencode_e2e.py::test_flowctl_real_opencode -v --r
 target-repo/                   # repo_dir (tmp_path)
 ├── src/                       # repo: prefix writes here
 │   └── implementation.py      # Opencode output
+├── .claude/                   # Skills for opencode auto-loading
+│   └── skills/
+│       └── testing/
+│           └── test_skill.md
 └── .flows/                    # workflow_dir (copied from fixture)
     ├── config.yaml            # repo_dir: ..
     ├── workflows/workflow.yaml

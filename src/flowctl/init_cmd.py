@@ -93,7 +93,7 @@ def run_init(target: str | None, config_path: str | None = None, source_workflow
         source_dir = Path(source_workflow_dir)
         click.echo(f"Copying workflow files from {source_dir}")
         
-        # Copy entire directory structure as-is
+        # Copy .flows/ directory structure
         for subdir in ["workflows", "prompts", "skills", "scripts"]:
             src_subdir = source_dir / subdir
             if src_subdir.exists():
@@ -107,5 +107,19 @@ def run_init(target: str | None, config_path: str | None = None, source_workflow
                             click.echo(f"  Copied: {subdir}/{f.name} (executable)")
                         else:
                             click.echo(f"  Copied: {subdir}/{f.name}")
+        
+        # Copy .claude/skills/ for opencode auto-loading
+        claude_skills_src = source_dir / ".claude" / "skills"
+        if claude_skills_src.exists():
+            claude_skills_dst = base / ".claude" / "skills"
+            claude_skills_dst.mkdir(parents=True, exist_ok=True)
+            
+            for skill_dir in claude_skills_src.iterdir():
+                if skill_dir.is_dir():
+                    dst_skill_dir = claude_skills_dst / skill_dir.name
+                    dst_skill_dir.mkdir(parents=True, exist_ok=True)
+                    for f in skill_dir.glob("*.md"):
+                        shutil.copy(f, dst_skill_dir / f.name)
+                        click.echo(f"  Copied: .claude/skills/{skill_dir.name}/{f.name}")
     
     click.echo(f"Initialized {flows_dir} in {base}")

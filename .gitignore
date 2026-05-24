@@ -8,3 +8,5 @@ build/
 .pytest_cache/
 .coverage
 .worktrees/
+temp2
+tests/integration/target-repo/src

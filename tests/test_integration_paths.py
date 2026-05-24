@@ -71,11 +71,51 @@ def test_backward_compatibility():
     """Default paths work without config changes."""
     runner = CliRunner()
     
-    result = runner.invoke(main, [
-        'run',
-        '--dry-run',
-        '.flows/workflows/hello-world.yaml',
-    ])
+    # Create temp directory with hello-world workflow
+    temp_root = Path(tempfile.mkdtemp())
+    flows_dir = temp_root / ".flows"
+    flows_dir.mkdir(parents=True)
     
-    assert result.exit_code == 0
-    assert Path(".flows/runs/latest").exists()
+    workflows_dir = flows_dir / "workflows"
+    workflows_dir.mkdir()
+    
+    prompts_dir = flows_dir / "prompts"
+    prompts_dir.mkdir()
+    
+    hello_world = workflows_dir / "hello-world.yaml"
+    hello_world.write_text("""version: "1"
+nodes:
+  hello:
+    role: greeter
+    prompt: prompts/hello.md
+    executor: echo
+    outputs: {greeting: greeting.txt}
+transitions:
+  - from: __start__
+    to: hello
+  - from: hello
+    to: __end__
+""")
+    
+    hello_prompt = prompts_dir / "hello.md"
+    hello_prompt.write_text("# Hello World")
+    
+    try:
+        # Change cwd to temp_root for the test
+        import os
+        old_cwd = os.getcwd()
+        os.chdir(temp_root)
+        
+        result = runner.invoke(main, [
+            'run',
+            '--dry-run',
+            '.flows/workflows/hello-world.yaml',
+        ])
+        
+        os.chdir(old_cwd)
+        
+        assert result.exit_code == 0
+        assert (flows_dir / "runs" / "latest").exists()
+    
+    finally:
+        shutil.rmtree(temp_root)

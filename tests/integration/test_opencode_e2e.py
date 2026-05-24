@@ -38,6 +38,7 @@ def test_flowctl_init_with_source(tmp_path):
     Verifies:
     - .flows/ created in target repo
     - workflow files copied from source
+    - .claude/skills/ copied for opencode auto-loading
     - config.yaml has repo_dir: ..
     - scripts are executable
     """
@@ -76,6 +77,11 @@ def test_flowctl_init_with_source(tmp_path):
     assert (workflow_dir / "prompts" / "verify.md").exists()
     assert (workflow_dir / "skills" / "minimal.md").exists()
     assert (workflow_dir / "scripts" / "setup.sh").exists()
+    
+    # Check .claude/skills/ copied
+    claude_skills = repo_dir / ".claude" / "skills"
+    assert claude_skills.exists(), ".claude/skills should be created"
+    assert (claude_skills / "testing" / "test_skill.md").exists(), "test_skill.md should be copied"
     
     # Check script is executable
     script_file = workflow_dir / "scripts" / "setup.sh"
