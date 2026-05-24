@@ -22,6 +22,37 @@ Location: `tests/integration/`
   - Tests: init validation, dry run, real opencode execution
   - Validator: `tests/integration/validators.py`
 
+### When to Use Integration Test Workflow
+
+Follow `tests/integration/README.md` when:
+
+1. **Testing flowctl CLI commands** - init, run, status, upgrade
+2. **Testing executor behavior** - opencode, bash, echo
+3. **Testing path prefix resolution** - `repo:`, `run:`, `workflow:`
+4. **Testing skill auto-loading** - `.claude/skills/` copying and opencode loading
+5. **Testing workflow execution** - multi-node workflows, transitions, validation
+
+Development flow:
+
+```
+1. Create fixture directory: tests/integration/<test_name>/
+   ├── workflows/workflow.yaml
+   ├── prompts/
+   ├── skills/
+   ├── scripts/
+   └── .claude/skills/   (if testing opencode skills)
+
+2. Write test in: tests/integration/test_<test_name>.py
+   - Use tmp_path for isolated test repo
+   - Call flowctl init with --source-workflow-dir
+   - Call flowctl run with executor
+   - Use validators.assert_test_passed()
+
+3. Run tests: pytest tests/integration/ -v
+
+4. Manual real execution: pytest --run-skipped
+```
+
 ### Running Tests
 
 ```bash
