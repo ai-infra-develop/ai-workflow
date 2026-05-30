@@ -10,3 +10,5 @@ build/
 .worktrees/
 temp2
 tests/integration/target-repo/src
+repos
+.env

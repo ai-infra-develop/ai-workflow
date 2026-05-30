@@ -10,7 +10,7 @@ def run_init(target: str | None, config_path: str | None = None, source_workflow
     
     Args:
         target: Target repo directory (defaults to cwd)
-        config_path: Config file path (optional)
+        config_path: Config file path (optional, only used when target not specified)
         source_workflow_dir: Source workflow directory to copy (optional)
     
     If source_workflow_dir is provided, workflow files are copied into target/.flows/
@@ -42,7 +42,11 @@ def run_init(target: str | None, config_path: str | None = None, source_workflow
                 f"    scripts/    (optional)"
             )
     
-    if config_path:
+    # When target is explicitly specified, always use it as base
+    # When target is not specified, use config to resolve flows_dir
+    if target:
+        flows_dir = base / ".flows"
+    elif config_path:
         _, workflow_dir, _ = resolve_paths(config_path, None, None)
         flows_dir = workflow_dir
     else:

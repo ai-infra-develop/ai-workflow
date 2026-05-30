@@ -14,7 +14,7 @@ def main():
 
 @main.command()
 @click.option("--target", default=None, help="Target directory")
-@click.option("--config", default=".flows/config.yaml", help="Config file path")
+@click.option("--config", default=None, help="Config file path (only used when target not specified)")
 @click.option("--source-workflow-dir", default=None, help="Source workflow directory to copy")
 def init(target, config, source_workflow_dir):
     """Bootstrap .flows/ directory in the target project.
