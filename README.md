@@ -2,9 +2,21 @@
 
 A node-graph workflow engine that takes a software spec and produces a code change.
 
+## Prerequisites
+
+| Dependency | Purpose | Install |
+|------------|---------|---------|
+| **uv** | Python package manager | `curl -LsSf https://astral.sh/uv/install.sh | sh` |
+| **gh** | GitHub CLI (for bash executor nodes) | `brew install gh` or see [github.com/cli/cli](https://github.com/cli/cli) |
+| **opencode** | AI executor (optional) | See [opencode.ai](https://opencode.ai) |
+
 ## Installation
 
 ```bash
+# Install with uv
+uv pip install -e .
+
+# Or install with pip
 pip install -e .
 ```
 
@@ -13,7 +25,7 @@ pip install -e .
 ### Initialize a project
 
 ```bash
-flowctl init
+uv run flowctl init
 ```
 
 Creates `.flows/` directory structure:
@@ -38,10 +50,10 @@ If a workflow was interrupted, you can resume from where it stopped:
 
 ```bash
 # Resume latest run
-flowctl run .flows/workflows/spec-to-code.yaml --executor opencode --resume
+uv run flowctl run .flows/workflows/spec-to-code.yaml --executor opencode --resume
 
 # Resume specific run
-flowctl run .flows/workflows/spec-to-code.yaml --executor opencode --run-id my-run --resume
+uv run flowctl run .flows/workflows/spec-to-code.yaml --executor opencode --run-id my-run --resume
 ```
 
 ### Logging
@@ -50,13 +62,13 @@ Workflow execution is logged to `.flows/runs/<run-id>/execution.log`:
 
 ```bash
 # JSON format (default)
-flowctl run .flows/workflows/spec-to-code.yaml --log-format json
+uv run flowctl run .flows/workflows/spec-to-code.yaml --log-format json
 
 # Text format
-flowctl run .flows/workflows/spec-to-code.yaml --log-format text
+uv run flowctl run .flows/workflows/spec-to-code.yaml --log-format text
 
 # Debug level
-flowctl run .flows/workflows/spec-to-code.yaml --log-level DEBUG
+uv run flowctl run .flows/workflows/spec-to-code.yaml --log-level DEBUG
 ```
 
 ## CLI Options
@@ -91,13 +103,13 @@ workflow_dir: .flows
 
 ```bash
 # Use custom config location
-flowctl run --config ~/my-config.yaml
+uv run flowctl run --config ~/my-config.yaml
 
 # Override run directory
-flowctl run --run-dir ~/runs
+uv run flowctl run --run-dir ~/runs
 
 # Override workflow directory
-flowctl run --workflow-dir ~/shared-workflows
+uv run flowctl run --workflow-dir ~/shared-workflows
 ```
 
 **Precedence:** CLI options > config values > defaults

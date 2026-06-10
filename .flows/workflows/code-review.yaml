@@ -1,0 +1,63 @@
+version: "1"
+
+nodes:
+  analyze:
+    role: developer
+    prompt: prompts/analyze.md
+    executor: opencode
+    inputs:
+      code: repo:src/main.py
+      architecture: repo:ARCHITECTURE.md
+    outputs:
+      analysis: analysis.md
+
+  human_review:
+    role: human
+    prompt: prompts/review-checklist.md
+    executor: human
+    inputs:
+      analysis: analysis.md
+    outputs:
+      verdict: verdict.txt
+      review_comments: review-comments.md
+
+  fix_issues:
+    role: developer
+    prompt: prompts/fix.md
+    executor: opencode
+    inputs:
+      analysis: analysis.md
+      review_comments: review-comments.md
+      reject_reason: reject-reason.txt
+    outputs:
+      fixes: fixes.md
+
+  write_result:
+    role: developer
+    prompt: prompts/result.md
+    executor: opencode
+    inputs:
+      fixes: fixes.md
+    outputs:
+      result: result.txt
+
+transitions:
+  - from: __start__
+    to: analyze
+
+  - from: analyze
+    to: human_review
+
+  - from: human_review
+    to: write_result
+    when: verdict == "approved"
+
+  - from: human_review
+    to: fix_issues
+    when: verdict == "rejected"
+
+  - from: fix_issues
+    to: human_review
+
+  - from: write_result
+    to: __end__
