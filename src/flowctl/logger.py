@@ -221,6 +221,17 @@ class WorkflowLogger:
         )
         self._write(entry)
     
+    def log_skip(self, node_id: str):
+        entry = LogEntry(
+            timestamp=self._timestamp(),
+            level="INFO",
+            run_id=self.run_id,
+            event="node_skip",
+            node=node_id,
+            state="skipped",
+        )
+        self._write(entry)
+    
     def log_executor(
         self,
         node_id: str,

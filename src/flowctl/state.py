@@ -22,6 +22,7 @@ class WorkflowState:
     pending_approval_for: Optional[str] = None
     pending_transition_from: Optional[str] = None
     reject_counts: Optional[dict[str, int]] = None
+    skipped_nodes: Optional[list[str]] = None
 
 
 def save_state(
@@ -33,6 +34,7 @@ def save_state(
     pending_approval_for: Optional[str] = None,
     pending_transition_from: Optional[str] = None,
     reject_counts: Optional[dict[str, int]] = None,
+    skipped_nodes: Optional[list[str]] = None,
 ) -> None:
     state_file = run_dir / "state.json"
     state = WorkflowState(
@@ -44,6 +46,7 @@ def save_state(
         pending_approval_for=pending_approval_for,
         pending_transition_from=pending_transition_from,
         reject_counts=reject_counts,
+        skipped_nodes=skipped_nodes,
     )
     state_file.write_text(json.dumps({
         "current_node": state.current_node,
@@ -54,6 +57,7 @@ def save_state(
         "pending_approval_for": state.pending_approval_for,
         "pending_transition_from": state.pending_transition_from,
         "reject_counts": state.reject_counts,
+        "skipped_nodes": state.skipped_nodes,
     }, indent=2))
 
 
@@ -75,6 +79,7 @@ def load_state(run_dir: Path) -> Optional[WorkflowState]:
             pending_approval_for=data.get("pending_approval_for"),
             pending_transition_from=data.get("pending_transition_from"),
             reject_counts=data.get("reject_counts"),
+            skipped_nodes=data.get("skipped_nodes"),
         )
     except (json.JSONDecodeError, KeyError):
         return None

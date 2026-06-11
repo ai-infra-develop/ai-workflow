@@ -575,3 +575,82 @@ Do the work.
     assert "Old manual input description" not in stdout
     assert "# Test Task" in stdout
     assert "## Task" in stdout
+
+
+def test_workflow_skip_node(tmp_path):
+    wf = WorkflowDef(
+        nodes={
+            "step1": Node(role="dev", prompt="p1.md", inputs={}, outputs={"output1": "out1.md"}),
+            "step2": Node(role="dev", prompt="p2.md", inputs={}, outputs={"output2": "out2.md"}),
+            "step3": Node(role="dev", prompt="p3.md", inputs={}, outputs={"output3": "out3.md"}),
+        },
+        transitions=[
+            Transition(from_="__start__", to="step1"),
+            Transition(from_="step1", to="step2"),
+            Transition(from_="step2", to="step3"),
+            Transition(from_="step3", to="__end__"),
+        ],
+    )
+    
+    from flowctl.state import save_state, WorkflowStatus
+    
+    save_state(tmp_path, "step2", {"output1": "existing"}, 1)
+    
+    result = run_workflow(wf, tmp_path, dry_run=False, resume=True, skip_node=True)
+    
+    state = load_state(tmp_path)
+    assert state is not None
+    assert state.skipped_nodes == ["step2"]
+    assert "output3" in result
+    assert "Skipped node: step2" in result or True
+
+
+def test_workflow_skip_node_tracked_in_state(tmp_path):
+    wf = WorkflowDef(
+        nodes={
+            "step1": Node(role="dev", prompt="p1.md", inputs={}, outputs={"output1": "out1.md"}),
+            "step2": Node(role="dev", prompt="p2.md", inputs={}, outputs={"output2": "out2.md"}),
+        },
+        transitions=[
+            Transition(from_="__start__", to="step1"),
+            Transition(from_="step1", to="step2"),
+            Transition(from_="step2", to="__end__"),
+        ],
+    )
+    
+    from flowctl.state import save_state, WorkflowStatus
+    
+    save_state(tmp_path, "step1", {}, 1)
+    
+    result = run_workflow(wf, tmp_path, dry_run=False, resume=True, skip_node=True)
+    
+    state = load_state(tmp_path)
+    assert state is not None
+    assert state.skipped_nodes == ["step1"]
+    assert state.status == WorkflowStatus.COMPLETED
+
+
+def test_workflow_skip_node_logged(tmp_path):
+    wf = WorkflowDef(
+        nodes={
+            "step1": Node(role="dev", prompt="p1.md", inputs={}, outputs={"output1": "out1.md"}),
+            "step2": Node(role="dev", prompt="p2.md", inputs={}, outputs={"output2": "out2.md"}),
+        },
+        transitions=[
+            Transition(from_="__start__", to="step1"),
+            Transition(from_="step1", to="step2"),
+            Transition(from_="step2", to="__end__"),
+        ],
+    )
+    
+    from flowctl.state import save_state, WorkflowStatus
+    
+    save_state(tmp_path, "step1", {}, 1)
+    
+    result = run_workflow(wf, tmp_path, dry_run=False, resume=True, skip_node=True)
+    
+    log_file = tmp_path / "execution.log"
+    assert log_file.exists()
+    log_content = log_file.read_text()
+    assert "node_skip" in log_content
+    assert "step1" in log_content

@@ -8,7 +8,7 @@ from .processor import PromptProcessor
 from .executors.base import ExecutorInput, ExecutorResult
 from .artifact_validator import validate_artifacts
 from .logger import WorkflowLogger
-from .state import save_state, load_state, has_state, clear_state, WorkflowStatus
+from .state import save_state, load_state, has_state, clear_state, WorkflowStatus, WorkflowState
 
 MAX_ITERATIONS = 100
 MAX_REJECTS = 5  # Maximum reject attempts per approval node
@@ -35,6 +35,15 @@ def resolve_executor_config(node: Node) -> dict:
         config["script_path"] = node.command or ""
         config["timeout_seconds"] = node.timeout_seconds or 60
     return config
+
+
+def get_skipped_nodes(context: dict, state: WorkflowState | None = None) -> list[str] | None:
+    skipped = context.get("__skipped_nodes__")
+    if skipped:
+        return skipped
+    if state and state.skipped_nodes:
+        return state.skipped_nodes
+    return None
 
 
 def load_flowctl_config(workflow_dir: Path | None) -> FlowctlConfig | None:
@@ -85,6 +94,7 @@ def run_workflow(
     resume: bool = False,
     approval_decision: str | None = None,
     reject_reason: str | None = None,
+    skip_node: bool = False,
 ) -> dict[str, str]:
     config = load_flowctl_config(workflow_dir)
     processor = PromptProcessor()
@@ -104,7 +114,20 @@ def run_workflow(
     if resume and has_state(run_dir):
         state = load_state(run_dir)
         if state:
-            if state.status == WorkflowStatus.PAUSED:
+            if skip_node and state.status != WorkflowStatus.PAUSED:
+                skipped_nodes = state.skipped_nodes or []
+                if state.current_node not in ["__start__", "__end__"]:
+                    skipped_nodes.append(state.current_node)
+                    logger.log_skip(state.current_node)
+                    click.echo(f"Skipped node: {state.current_node}")
+                context = state.context
+                context["__skipped_nodes__"] = skipped_nodes
+                current = state.current_node
+                iterations = state.iterations
+                reject_counts_dict = context.get("__reject_counts__") or {}
+                if not dry_run:
+                    save_state(run_dir, current, context, iterations, skipped_nodes=skipped_nodes, reject_counts=reject_counts_dict)
+            elif state.status == WorkflowStatus.PAUSED:
                 if not approval_decision:
                     click.echo(f"Error: Workflow paused at '{state.current_node}'. Use --approve or --reject", err=True)
                     raise click.Abort()
@@ -148,13 +171,17 @@ def run_workflow(
                     context[approval_key] = artifact_path.read_text()
                     click.echo(f"Resuming from '{state.current_node}' with decision: {approval_decision}")
                 
-                # Set current to the human node, will skip in the loop
+                if state.skipped_nodes:
+                    context["__skipped_nodes__"] = state.skipped_nodes
+                
                 current = state.current_node
                 iterations = state.iterations
             else:
                 current = state.current_node
                 context = state.context
                 iterations = state.iterations
+                if state.skipped_nodes:
+                    context["__skipped_nodes__"] = state.skipped_nodes
 
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -226,19 +253,22 @@ def run_workflow(
             current = next_node
             if not dry_run:
                 reject_counts_dict = context.get("__reject_counts__") or (state.reject_counts if resume and state else {})
-                save_state(run_dir, current, context, iterations, status=WorkflowStatus.RUNNING, reject_counts=reject_counts_dict)
+                skipped_nodes_list = get_skipped_nodes(context, state if resume else None)
+                save_state(run_dir, current, context, iterations, status=WorkflowStatus.RUNNING, reject_counts=reject_counts_dict, skipped_nodes=skipped_nodes_list)
             continue
 
         if executor_name == "human" and not dry_run:
             approval_key = list(node_def.outputs.keys())[0] if node_def.outputs else None
             prev_node = current
             reject_counts_dict = context.get("__reject_counts__") or (state.reject_counts if resume and state else {})
+            skipped_nodes_list = get_skipped_nodes(context, state if resume else None)
             save_state(
                 run_dir, next_node, context, iterations,
                 status=WorkflowStatus.PAUSED,
                 pending_approval_for=approval_key,
                 pending_transition_from=prev_node,
                 reject_counts=reject_counts_dict,
+                skipped_nodes=skipped_nodes_list,
             )
             logger.log_pause(next_node, node_def.inputs or {})
             click.echo(f"Workflow paused at '{next_node}'. Approve: flowctl run --resume --approve | Reject: flowctl run --resume --reject")
@@ -297,11 +327,13 @@ def run_workflow(
         
         if not dry_run:
             reject_counts_dict = context.get("__reject_counts__") or {}
-            save_state(run_dir, current, context, iterations, reject_counts=reject_counts_dict)
+            skipped_nodes_list = get_skipped_nodes(context, state if resume else None)
+            save_state(run_dir, current, context, iterations, reject_counts=reject_counts_dict, skipped_nodes=skipped_nodes_list)
 
     if not dry_run:
         reject_counts_dict = context.get("__reject_counts__") or {}
-        save_state(run_dir, "__end__", context, iterations, status=WorkflowStatus.COMPLETED, reject_counts=reject_counts_dict)
+        skipped_nodes_list = get_skipped_nodes(context, state if resume else None)
+        save_state(run_dir, "__end__", context, iterations, status=WorkflowStatus.COMPLETED, reject_counts=reject_counts_dict, skipped_nodes=skipped_nodes_list)
 
     logger.log_workflow_end("completed")
     return context
