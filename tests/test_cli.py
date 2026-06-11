@@ -256,3 +256,56 @@ def test_status_run_dir_option():
     
     # Cleanup
     shutil.rmtree(temp_run_dir.parent)
+
+
+def test_cli_skip_node_requires_resume():
+    """--skip-node flag must be used with --resume."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        flows_dir = Path(".flows/workflows")
+        flows_dir.mkdir(parents=True)
+        workflow_file = flows_dir / "default.yaml"
+        workflow_file.write_text(
+            "version: '1'\n"
+            "nodes:\n"
+            "  planner:\n"
+            "    role: planner\n"
+            "    prompt: prompts/plan.md\n"
+            "    inputs: {}\n"
+            "    outputs: {spec: spec.md}\n"
+            "transitions:\n"
+            "  - from: __start__\n"
+            "    to: planner\n"
+            "  - from: planner\n"
+            "    to: __end__\n"
+        )
+        
+        result = runner.invoke(main, ["run", ".flows/workflows/default.yaml", "--skip-node"])
+        assert result.exit_code != 0
+        assert "must use --resume" in result.output.lower()
+
+
+def test_cli_skip_node_with_resume():
+    """--skip-node with --resume should be accepted."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        flows_dir = Path(".flows/workflows")
+        flows_dir.mkdir(parents=True)
+        workflow_file = flows_dir / "default.yaml"
+        workflow_file.write_text(
+            "version: '1'\n"
+            "nodes:\n"
+            "  planner:\n"
+            "    role: planner\n"
+            "    prompt: prompts/plan.md\n"
+            "    inputs: {}\n"
+            "    outputs: {spec: spec.md}\n"
+            "transitions:\n"
+            "  - from: __start__\n"
+            "    to: planner\n"
+            "  - from: planner\n"
+            "    to: __end__\n"
+        )
+        
+        result = runner.invoke(main, ["run", ".flows/workflows/default.yaml", "--resume", "--skip-node"])
+        assert "must use --resume" not in result.output

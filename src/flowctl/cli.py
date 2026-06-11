@@ -89,8 +89,9 @@ def status(config, run_dir, run_id):
 @click.option("--approve", is_flag=True, help="Approve pending human node")
 @click.option("--reject", is_flag=True, help="Reject pending human node")
 @click.option("--reject-reason", default=None, help="Reason for rejection (required with --reject)")
+@click.option("--skip-node", is_flag=True, help="Skip current node during workflow execution")
 @click.argument("workflow", default=".flows/workflows/default.yaml")
-def run(config, dry_run, executor, model, agent, run_dir, workflow_dir, repo_dir, workflow, run_id, issue, log_level, log_format, resume, approve, reject, reject_reason):
+def run(config, dry_run, executor, model, agent, run_dir, workflow_dir, repo_dir, workflow, run_id, issue, log_level, log_format, resume, approve, reject, reject_reason, skip_node):
     wf_path = Path(workflow)
     if not wf_path.exists():
         click.echo(f"Workflow not found: {wf_path}", err=True)
@@ -113,6 +114,10 @@ def run(config, dry_run, executor, model, agent, run_dir, workflow_dir, repo_dir
     
     if reject and not reject_reason:
         click.echo("Error: --reject-reason is required when using --reject", err=True)
+        raise click.Abort()
+    
+    if skip_node and not resume:
+        click.echo("Error: Must use --resume with --skip-node", err=True)
         raise click.Abort()
 
     # Resolve paths from config + CLI overrides
@@ -167,5 +172,6 @@ def run(config, dry_run, executor, model, agent, run_dir, workflow_dir, repo_dir
         resume=resume,
         approval_decision=approval_decision,
         reject_reason=reject_reason,
+        skip_node=skip_node,
     )
     click.echo(f"Run complete. Context: {result}")
